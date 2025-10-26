@@ -38,7 +38,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   console.log(user);
 
   return (
-    <div className="flex flex-col h-full w-44 bg-card border-r border-border">
+    <div className="flex flex-col h-full w-64 bg-card border-r border-border">
       {/* Logo */}
       <div className="flex items-center justify-center py-4 border-b border-border">
         <Image src={logo} alt="QuickPoll" width={80} height={80} />
@@ -55,7 +55,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex flex-col flex-1 px-4 py-6 space-y-2">
         {navigation.map((item) => (
           <Link key={item.href} href={item.href} onClick={onClose}>
             <div className="flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors hover:bg-accent">

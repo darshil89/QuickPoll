@@ -40,10 +40,22 @@ export default function Dashboard() {
       setVoting(`${pollId}-${optionId}`);
       const updatedPoll = await pollAPI.voteOnPoll(pollId, optionId);
       
-      // Update the poll in the list
-      setPolls(prev => prev.map(poll => 
-        poll.id === pollId ? updatedPoll : poll
-      ));
+      console.log('Vote response:', updatedPoll);
+      
+      // Update the poll in the list with proper state preservation
+      setPolls(prev => prev.map(poll => {
+        if (poll.id === pollId) {
+          console.log('Updating poll for vote:', pollId);
+          return {
+            ...poll,
+            ...updatedPoll,
+            // Ensure we preserve the original structure
+            options: updatedPoll.options || poll.options,
+            likes: updatedPoll.likes || poll.likes,
+          };
+        }
+        return poll;
+      }));
       
       toast.success('Vote recorded successfully!');
     } catch (error) {
@@ -61,10 +73,22 @@ export default function Dashboard() {
       setLiking(pollId);
       const updatedPoll = await pollAPI.likePoll(pollId);
       
-      // Update the poll in the list
-      setPolls(prev => prev.map(poll => 
-        poll.id === pollId ? updatedPoll : poll
-      ));
+      console.log('Like response:', updatedPoll);
+      
+      // Update the poll in the list with proper state preservation
+      setPolls(prev => prev.map(poll => {
+        if (poll.id === pollId) {
+          console.log('Updating poll for like:', pollId);
+          return {
+            ...poll,
+            ...updatedPoll,
+            // Ensure we preserve the original structure
+            options: updatedPoll.options || poll.options,
+            likes: updatedPoll.likes || poll.likes,
+          };
+        }
+        return poll;
+      }));
       
       toast.success('Like updated!');
     } catch (error) {
