@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (tokenData.exp && tokenData.exp > currentTime) {
             // Token is valid, set user data from token
             setUser({
-              id: tokenData.id,
+              id: tokenData.sub,
               email: tokenData.email,
               name: tokenData.name || ''
             });
