@@ -8,17 +8,78 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Heart, Users, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
+import { io, Socket } from 'socket.io-client';
 
 export default function Dashboard() {
   const [polls, setPolls] = useState<PollResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [voting, setVoting] = useState<string | null>(null);
-  const [liking, setLiking] = useState<string | null>(null);
+  
+  const [apiLoading, setApiLoading] = useState<string | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
     fetchPolls();
   }, []);
+
+  useEffect(() => {
+    const socket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001', {
+      path: "/ws/updates"
+    });
+
+    socket.on('connect', () => {
+      console.log('WebSocket connected:', socket.id);
+    });
+
+    socket.on('vote-update', (data) => {
+      console.log('Vote update received:', data);
+      
+      setPolls(prevPolls =>
+        prevPolls.map(poll => {
+          if (poll.id === data.pollId) {
+            const newCounts = {
+              ...poll.counts,
+              [data.optionId]: data.newCount,
+            };
+            return {
+              ...poll,
+              counts: newCounts,
+              userHasVoted: data.userId === user?.id ? data.optionId : poll.userHasVoted
+            };
+          }
+          return poll;
+        })
+      );
+    });
+
+    socket.on('like-update', (data) => {
+      console.log('Like update received:', data);
+      setPolls(prevPolls =>
+        prevPolls.map(poll => {
+          if (poll.id === data.pollId) {
+            const newCounts = {
+              ...poll.counts,
+              likes: data.newCount,
+            };
+            return {
+              ...poll,
+              counts: newCounts,
+              userHasLiked: data.userId === user?.id ? true : poll.userHasLiked
+            };
+          }
+          return poll;
+        })
+      );
+    });
+
+    socket.on('disconnect', () => {
+      console.log('WebSocket disconnected');
+    });
+
+    // Cleanup on unmount
+    return () => {
+      socket.disconnect();
+    };
+  }, [user]); // Re-run if user changes
 
   const fetchPolls = async () => {
     try {
@@ -37,32 +98,16 @@ export default function Dashboard() {
     if (!user) return;
     
     try {
-      setVoting(`${pollId}-${optionId}`);
-      const updatedPoll = await pollAPI.voteOnPoll(pollId, optionId);
-      
-      console.log('Vote response:', updatedPoll);
-      
-      // Update the poll in the list with proper state preservation
-      setPolls(prev => prev.map(poll => {
-        if (poll.id === pollId) {
-          console.log('Updating poll for vote:', pollId);
-          return {
-            ...poll,
-            ...updatedPoll,
-            // Ensure we preserve the original structure
-            options: updatedPoll.options || poll.options,
-            likes: updatedPoll.likes || poll.likes,
-          };
-        }
-        return poll;
-      }));
-      
-      toast.success('Vote recorded successfully!');
+      setApiLoading(`${pollId}-${optionId}`);
+      // Send the vote. We don't need the response.
+      await pollAPI.voteOnPoll(pollId, optionId);
+      // We don't call setPolls here! The WebSocket listener will.
+      toast.success('Vote recorded!');
     } catch (error) {
       console.error('Failed to vote:', error);
       toast.error('Failed to vote. Please try again.');
     } finally {
-      setVoting(null);
+      setApiLoading(null);
     }
   };
 
@@ -70,51 +115,23 @@ export default function Dashboard() {
     if (!user) return;
     
     try {
-      setLiking(pollId);
-      const updatedPoll = await pollAPI.likePoll(pollId);
-      
-      console.log('Like response:', updatedPoll);
-      
-      // Update the poll in the list with proper state preservation
-      setPolls(prev => prev.map(poll => {
-        if (poll.id === pollId) {
-          console.log('Updating poll for like:', pollId);
-          return {
-            ...poll,
-            ...updatedPoll,
-            // Ensure we preserve the original structure
-            options: updatedPoll.options || poll.options,
-            likes: updatedPoll.likes || poll.likes,
-          };
-        }
-        return poll;
-      }));
-      
+      setApiLoading(pollId);
+      // Send the like.
+      await pollAPI.likePoll(pollId);
+      // We don't call setPolls here!
       toast.success('Like updated!');
     } catch (error) {
       console.error('Failed to like:', error);
       toast.error('Failed to like poll. Please try again.');
     } finally {
-      setLiking(null);
+      setApiLoading(null);
     }
   };
 
   const getTotalVotes = (poll: PollResponse) => {
-    return poll.options?.reduce((total, option) => 
-      total + (option.votes?.length || 0), 0
-    ) || 0;
-  };
-
-  const hasUserVoted = (poll: PollResponse) => {
-    if (!user) return false;
-    return poll.options?.some(option => 
-      option.votes?.some(vote => vote.userId === user.id)
-    ) || false;
-  };
-
-  const hasUserLiked = (poll: PollResponse) => {
-    if (!user) return false;
-    return poll.likes?.some(like => like.userId === user.id) || false;
+    return poll.options.reduce((total, option) => {
+      return total + (poll.counts[option.id as string] || 0);
+    }, 0);
   };
 
   if (loading) {
@@ -130,44 +147,29 @@ export default function Dashboard() {
   return (
     <div className="p-4 lg:p-6">
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">All Polls</h1>
-          <p className="text-muted-foreground">
-            Vote on polls and see what others think
-          </p>
-        </div>
-
         {polls.length === 0 ? (
-          <div className="text-center py-12">
-            <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold">No polls yet</h3>
-            <p className="text-muted-foreground">Be the first to create a poll!</p>
+          <div className="text-center text-muted-foreground">
+            <p>No polls found</p>
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {polls.map((poll) => {
               const totalVotes = getTotalVotes(poll);
-              const userVoted = hasUserVoted(poll);
-              const userLiked = hasUserLiked(poll);
+              const userVoted = !!poll.userHasVoted;
+              const userLiked = poll.userHasLiked;
               
               return (
                 <Card key={poll.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="text-lg">{poll.question}</CardTitle>
-                    <CardDescription>
-                      Created {new Date(poll.createdAt).toLocaleDateString()}
-                    </CardDescription>
-                  </CardHeader>
                   <CardContent className="space-y-4">
                     {poll.options?.map((option) => {
-                      const optionVotes = option.votes?.length || 0;
+                      const optionVotes = poll.counts[option.id as string] || 0;
                       const percentage = totalVotes > 0 ? (optionVotes / totalVotes) * 100 : 0;
-                      const isVoting = voting === `${poll.id}-${option.id}`;
+                      const isVoting = apiLoading === `${poll.id}-${option.id}`;
                       
                       return (
                         <div key={option.id} className="space-y-2">
                           <Button
-                            variant={userVoted ? "outline" : "secondary"}
+                            variant={poll.userHasVoted === option.id ? "default" : "secondary"}
                             className="w-full justify-start text-left h-auto py-3"
                             onClick={() => handleVote(poll.id!, option.id!)}
                             disabled={userVoted || isVoting}
@@ -179,7 +181,7 @@ export default function Dashboard() {
                                   {optionVotes} votes
                                 </span>
                               </div>
-                              {userVoted && (
+                              {(userVoted || isVoting) && (
                                 <Progress value={percentage} className="h-2" />
                               )}
                             </div>
@@ -197,11 +199,11 @@ export default function Dashboard() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleLike(poll.id!)}
-                        disabled={liking === poll.id}
+                        disabled={apiLoading === poll.id}
                         className={userLiked ? 'text-red-500' : ''}
                       >
                         <Heart className={`h-4 w-4 mr-1 ${userLiked ? 'fill-current' : ''}`} />
-                        {poll.likes?.length || 0}
+                        {poll.counts.likes || 0}
                       </Button>
                     </div>
                   </CardContent>

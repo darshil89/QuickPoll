@@ -47,37 +47,16 @@ export interface Poll {
   createdAt?: string;
 }
 
-export interface VoteResponse {
-  id?: string;
-  userId: string;
-  option?: Option;
-  optionId: string;
-  pollId: string;
-  poll?: Poll;
-}
-
-export interface OptionResponse {
-  id?: string;
-  text: string;
-  pollId?: string;
-  poll?: Poll;
-  votes?: VoteResponse[];
-}
-
-export interface LikeResponse {
-  id?: string;
-  userId: string;
-  pollId: string;
-  poll?: Poll;
-}
-
 export interface PollResponse {
-  id?: string;
+  id: string;
   question: string;
   userId: string;
   createdAt: string;
-  options?: OptionResponse[];
-  likes?: LikeResponse[];
+  options: Option[];
+
+  counts: { [key: string]: number };
+  userHasVoted: string | null;
+  userHasLiked: boolean;
 }
 
 export interface SignInRequest {
@@ -91,14 +70,8 @@ export interface AuthResponse {
   message: string;
 }
 
-// ============================================================================
-// CORE API FUNCTIONS
-// ============================================================================
-
-// Generic API request handler
 async function makeRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = getStoredToken();
-  console.log("token", token);
   
   const config: RequestInit = {
     method: options.method,
@@ -109,8 +82,6 @@ async function makeRequest<T>(url: string, options: RequestInit = {}): Promise<T
     },
     body: options.body,
   };
-
-  console.log("config", config);
 
   try {
     const response = await fetch(url, config);
@@ -133,13 +104,9 @@ async function makeRequest<T>(url: string, options: RequestInit = {}): Promise<T
   }
 }
 
-// ============================================================================
-// POLL FUNCTIONS
-// ============================================================================
-
-// Create a new poll
-export async function createPoll(poll: Poll): Promise<PollResponse> {
-  return makeRequest<PollResponse>(`${POLL_API_BASE_URL}/api/poll/create-poll`, {
+// Create a poll
+export async function createPoll(poll: Poll): Promise<Poll> {
+  return makeRequest<Poll>(`${POLL_API_BASE_URL}/api/poll/create-poll`, {
     method: 'POST',
     body: JSON.stringify(poll),
   });
@@ -162,26 +129,22 @@ export async function getUserPolls(userId: string): Promise<PollResponse[]> {
 }
 
 // Vote on a poll
-export async function voteOnPoll(pollId: string, optionId: string): Promise<PollResponse> {
-  return makeRequest<PollResponse>(`${POLL_API_BASE_URL}/api/poll/vote-on-poll/${pollId}/${optionId}`, {
+export async function voteOnPoll(pollId: string, optionId: string): Promise<Vote> {
+  return makeRequest<Vote>(`${POLL_API_BASE_URL}/api/poll/vote-on-poll/${pollId}/${optionId}`, {
     method: 'POST',
   });
 }
 
 // Like/unlike a poll
-export async function likePoll(pollId: string): Promise<PollResponse> {
-  return makeRequest<PollResponse>(`${POLL_API_BASE_URL}/api/poll/like-poll/${pollId}`, {
+export async function likePoll(pollId: string): Promise<Like> {
+  return makeRequest<Like>(`${POLL_API_BASE_URL}/api/poll/like-poll/${pollId}`, {
     method: 'POST',
   });
 }
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
 // Clear authentication data
 export function clearAuthData(): void {
-  localStorage.removeItem('authToken');
+  localStorage.removeItem('access_token');
   localStorage.removeItem('userData');
 }
 
@@ -213,13 +176,9 @@ export function isTokenExpired(token: string): boolean {
 
 // Save user data to localStorage
 export function saveUserData(user: User, token: string): void {
-  localStorage.setItem('authToken', token);
+  localStorage.setItem('access_token', token);
   localStorage.setItem('userData', JSON.stringify(user));
 }
-
-// ============================================================================
-// LEGACY API OBJECTS (for backward compatibility)
-// ============================================================================
 
 export const pollAPI = {
   createPoll: createPoll,

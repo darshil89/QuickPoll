@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -30,12 +30,14 @@ export const useAuth = () => {
 
 interface AuthProviderProps {
   children: ReactNode;
+  requireAuth?: boolean;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children, requireAuth = false }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const hasRedirected = useRef(false);
 
   const isAuthenticated = !!user;
 
@@ -68,11 +70,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.removeItem('access_token');
         }
       }
+      else {
+        setUser(null);
+      }
       setIsLoading(false);
     };
 
     initAuth();
   }, []);
+
+  // Authentication guard for protected routes
+  useEffect(() => {
+    if (requireAuth && !isLoading && !isAuthenticated && !hasRedirected.current) {
+      hasRedirected.current = true;
+      router.push('/');
+    }
+  }, [requireAuth, isLoading, isAuthenticated, router]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -102,6 +115,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         name: data.user.name || ''
       });
 
+      // Reset redirect flag on successful login
+      hasRedirected.current = false;
+
       toast.success('Login successful');
       return true;
     } catch (error) {
@@ -128,6 +144,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
   };
+
+  // Show loading spinner while checking authentication for protected routes
+  if (requireAuth && isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Don't render children if authentication is required but user is not authenticated
+  if (requireAuth && !isAuthenticated) {
+    return null;
+  }
 
   return (
     <AuthContext.Provider value={value}>
