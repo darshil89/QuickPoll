@@ -160,6 +160,12 @@ export default function Dashboard() {
               
               return (
                 <Card key={poll.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle>{poll.question}</CardTitle>
+                    <CardDescription>
+                      Created {new Date(poll.createdAt).toLocaleDateString()}
+                    </CardDescription>
+                  </CardHeader>
                   <CardContent className="space-y-4">
                     {poll.options?.map((option) => {
                       const optionVotes = poll.counts[option.id as string] || 0;
