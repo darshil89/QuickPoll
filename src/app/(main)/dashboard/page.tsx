@@ -35,15 +35,15 @@ export default function Dashboard() {
       
       setPolls(prevPolls =>
         prevPolls.map(poll => {
-          if (poll.id === data.pollId) {
+          if (poll.id === data.poll_id) {
             const newCounts = {
               ...poll.counts,
-              [data.optionId]: data.newCount,
+              [data.option_id]: data.vote_count,
             };
             return {
               ...poll,
               counts: newCounts,
-              userHasVoted: data.userId === user?.id ? data.optionId : poll.userHasVoted
+              userHasVoted: data.user_id === user?.id ? data.option_id : poll.userHasVoted
             };
           }
           return poll;
@@ -55,15 +55,15 @@ export default function Dashboard() {
       console.log('Like update received:', data);
       setPolls(prevPolls =>
         prevPolls.map(poll => {
-          if (poll.id === data.pollId) {
+          if (poll.id === data.poll_id) {
             const newCounts = {
               ...poll.counts,
-              likes: data.newCount,
+              likes: data.like_count,
             };
             return {
               ...poll,
               counts: newCounts,
-              userHasLiked: data.userId === user?.id ? true : poll.userHasLiked
+              userHasLiked: data.user_id === user?.id ? true : poll.userHasLiked
             };
           }
           return poll;
@@ -94,13 +94,13 @@ export default function Dashboard() {
     }
   };
 
-  const handleVote = async (pollId: string, optionId: string) => {
+  const handleVote = async (poll_id: string, optionId: string) => {
     if (!user) return;
     
     try {
-      setApiLoading(`${pollId}-${optionId}`);
+      setApiLoading(`${poll_id}-${optionId}`);
       // Send the vote. We don't need the response.
-      await pollAPI.voteOnPoll(pollId, optionId);
+      await pollAPI.voteOnPoll(poll_id, optionId);
       // We don't call setPolls here! The WebSocket listener will.
       toast.success('Vote recorded!');
     } catch (error) {
@@ -111,13 +111,13 @@ export default function Dashboard() {
     }
   };
 
-  const handleLike = async (pollId: string) => {
+  const handleLike = async (poll_id: string) => {
     if (!user) return;
     
     try {
-      setApiLoading(pollId);
+      setApiLoading(poll_id);
       // Send the like.
-      await pollAPI.likePoll(pollId);
+      await pollAPI.likePoll(poll_id);
       // We don't call setPolls here!
       toast.success('Like updated!');
     } catch (error) {
