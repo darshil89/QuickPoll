@@ -14,6 +14,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, name: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -114,6 +115,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const signup = async (email: string, name: string, password: string): Promise<boolean> => {
+    try {
+      const response = await fetch('http://localhost:8000/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, name, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        toast.error(errorData.detail || 'Signup failed');
+        return false;
+      }
+
+      const data = await response.json();
+      
+      // Store token
+      localStorage.setItem('access_token', data.access_token);
+      
+      // Set user data from token or response
+      setUser({
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name || ''
+      });
+
+      toast.success('Signup successful');
+      return true;
+    } catch (error) {
+      console.error('Signup error:', error);
+      toast.error('Signup failed. Please try again.');
+      return false;
+    }
+  };
+
   const logout = () => {
     // Clear token and user data
     localStorage.removeItem('access_token');
@@ -127,6 +165,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     isLoading,
     login,
+    signup,
     logout,
   };
 
