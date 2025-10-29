@@ -164,6 +164,8 @@ export default function Dashboard() {
                     <CardTitle>{poll.question}</CardTitle>
                     <CardDescription>
                       Created {new Date(poll.createdAt).toLocaleDateString()}
+                      <br />
+                      by {poll.email}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">

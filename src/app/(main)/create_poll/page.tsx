@@ -59,6 +59,7 @@ export default function CreatePoll() {
       const pollData: Poll = {
         question: question.trim(),
         userId: user.id!,
+        email: user.email,
         options: validOptions.map(opt => ({
           text: opt.trim(),
         })),

@@ -41,6 +41,7 @@ export interface Poll {
   id?: string;
   question: string;
   userId: string;
+  email: string;
   options?: Option[];
   votes?: Vote[];
   likes?: Like[];
@@ -51,6 +52,7 @@ export interface PollResponse {
   id: string;
   question: string;
   userId: string;
+  email?: string;
   createdAt: string;
   options: Option[];
 
@@ -106,6 +108,7 @@ async function makeRequest<T>(url: string, options: RequestInit = {}): Promise<T
 
 // Create a poll
 export async function createPoll(poll: Poll): Promise<Poll> {
+  console.log("poll", poll);
   return makeRequest<Poll>(`${POLL_API_BASE_URL}/api/poll/create-poll`, {
     method: 'POST',
     body: JSON.stringify(poll),
